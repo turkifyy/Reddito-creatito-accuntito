@@ -1,0 +1,22 @@
+{
+  "name": "reddit-selenium-production",
+  "version": "2.0.0",
+  "description": "Production system for creating 100 Reddit accounts daily with Selenium & Telegram",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/main.js",
+    "deploy": "node src/deployment-check.js"
+  },
+  "dependencies": {
+    "selenium-webdriver": "^4.15.0",
+    "chrome-driver": "^120.0.0",
+    "axios": "^1.6.0",
+    "node-cron": "^3.0.0",
+    "telegraf": "^4.15.0",
+    "user-agents": "^1.0.0",
+    "https-proxy-agent": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
