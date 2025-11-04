@@ -35,7 +35,8 @@ jobs:
         google-chrome --version
     
     - name: 📦 تثبيت الاعتماديات
-      run: npm ci
+      run: npm install
+           npm audit fix --force
     
     - name: 🔍 فحص النشر
       env:
