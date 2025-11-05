@@ -123,7 +123,7 @@ class RedditProductionSystem {
         
         try {
             this.logger.production(`🌐 استخدام البروكسي: ${proxy.host}:${proxy.port}`);
-            
+            this.logger.production(`📧 استخدام besttemporaryemail.com - البريد: ${emailData.email}`);
             // إنشاء حساب باستخدام Selenium
             const accountResult = await this.seleniumManager.createRedditAccount(proxy);
             
