@@ -236,7 +236,8 @@ class RedditProductionSystem {
             end_time: new Date().toISOString(),
             proxies_used: this.proxyStats.size
         });
-
+        await this.saveProxyPerformance();
+        
         this.logger.production('📊 تقرير الإنتاج النهائي');
         this.logger.production(`✅ الحسابات الناجحة: ${this.accountsCreated}`);
         this.logger.production(`🔄 إجمالي المحاولات: ${this.totalAttempts}`);
