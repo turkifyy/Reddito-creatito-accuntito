@@ -1,7 +1,7 @@
 {
   "name": "reddit-production-system",
-  "version": "4.0.0",
-  "description": "Production system for creating 100 Reddit accounts daily with public proxies",
+  "version": "4.1.0",
+  "description": "Production system for creating 100 Reddit accounts daily with besttemporaryemail.com",
   "main": "src/main.js",
   "scripts": {
     "start": "node src/main.js",
