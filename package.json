@@ -1,21 +1,40 @@
 {
-  "name": "reddit-production-system",
-  "version": "4.1.0",
-  "description": "Production system for creating 100 Reddit accounts daily with besttemporaryemail.com",
+  "name": "reddit-smart-automation-v2",
+  "version": "2.0.0",
+  "description": "نظام أتمتة Reddit متطور مع تعافي تلقائي وخوارزميات ذكية",
   "main": "src/main.js",
   "scripts": {
     "start": "node src/main.js",
-    "deploy": "node src/deployment-check.js"
+    "deploy": "node src/deployment-check.js",
+    "test": "node src/test-system.js",
+    "recover": "node src/recovery/recovery-manager.js",
+    "monitor": "node src/monitoring/health-monitor.js"
   },
   "dependencies": {
     "selenium-webdriver": "^4.15.0",
     "chromedriver": "^120.0.0",
     "axios": "^1.6.0",
     "googleapis": "^126.0.1",
-    "https-proxy-agent": "^7.0.0",
-    "user-agents": "^1.0.0"
+    "user-agents": "^1.0.0",
+    "random-useragent": "^0.5.0",
+    "fs": "^0.0.1-security",
+    "path": "^0.12.7",
+    "os": "^0.1.2",
+    "crypto": "^1.0.1",
+    "node-cron": "^3.0.3",
+    "ping": "^0.4.4",
+    "systeminformation": "^5.21.0"
   },
   "engines": {
     "node": ">=18.0.0"
-  }
+  },
+  "keywords": [
+    "reddit",
+    "automation",
+    "self-recovery",
+    "selenium",
+    "ai-recovery"
+  ],
+  "author": "Reddit Automation Expert V2",
+  "license": "MIT"
 }
