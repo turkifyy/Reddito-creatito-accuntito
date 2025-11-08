@@ -84,27 +84,27 @@
   ],
   "author": {
     "name": "Reddit Automation Expert",
-    "email": "automation@example.com",
-    "url": "https://github.com/your-username/reddit-smart-automation-v2"
+    "email": "floresadam490@gmail.com",
+    "url": "https://github.com/turkifyy/Reddito-creatito-accuntito"
   },
   "contributors": [
     {
       "name": "AI Assistant",
-      "email": "ai@example.com"
+      "email": "floresadam490@gmail.com"
     }
   ],
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/reddit-smart-automation-v2.git"
+    "url": "https://github.com/turkifyy/Reddito-creatito-accuntito.git"
   },
   "bugs": {
-    "url": "https://github.com/your-username/reddit-smart-automation-v2/issues"
+    "url": "https://github.com/turkifyy/Reddito-creatito-accuntito/issues"
   },
-  "homepage": "https://github.com/your-username/reddit-smart-automation-v2#readme",
+  "homepage": "https://github.com/turkifyy/Reddito-creatito-accuntito#readme",
   "funding": {
     "type": "individual",
-    "url": "https://github.com/sponsors/your-username"
+    "url": "https://github.com/sponsors/turkifyy"
   },
   "files": [
     "src/",
