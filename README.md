@@ -74,7 +74,7 @@
 ```bash
 # 1. نسخ المستودع
 git clone https://github.com/turkifyy/Reddito-creatito-accuntito.git
-cd reddit-smart-automation-v2
+cd Reddito-creatito-accuntito
 
 # 2. تثبيت الاعتماديات
 npm run setup
