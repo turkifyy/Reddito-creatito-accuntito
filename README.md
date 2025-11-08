@@ -73,7 +73,7 @@
 
 ```bash
 # 1. نسخ المستودع
-git clone https://github.com/your-username/reddit-smart-automation-v2.git
+git clone https://github.com/turkifyy/Reddito-creatito-accuntito.git
 cd reddit-smart-automation-v2
 
 # 2. تثبيت الاعتماديات
