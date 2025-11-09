@@ -1,692 +1,0 @@
-name: 🚀 Reddit Automation System V2 - Production
-
-on:
-  # التشغيل التلقائي عند push إلى branch main
-  push:
-    branches: [ main, master ]
-    paths-ignore:
-      - '**.md'
-      - '**.txt'
-      - '.gitignore'
-      - 'LICENSE'
-  
-  # التشغيل اليدوي من واجهة GitHub Actions
-  workflow_dispatch:
-    inputs:
-      run_mode:
-        description: 'وضع التشغيل'
-        required: true
-        default: 'normal'
-        type: choice
-        options:
-        - normal
-        - recovery
-        - test
-        - cleanup
-      target_accounts:
-        description: 'عدد الحسابات المستهدف'
-        required: false
-        type: number
-        default: 48
-      max_runtime:
-        description: 'الحد الأقصى للتشغيل (دقائق)'
-        required: false
-        type: number
-        default: 360
-      enable_debug:
-        description: 'تفعيل وضع التصحيح'
-        required: false
-        type: boolean
-        default: false
-
-# إعداد متغيرات البيئة العامة
-env:
-  NODE_VERSION: '18.x'
-  CHROME_VERSION: '120'
-  TIMEZONE: 'Asia/Riyadh'
-  WORKING_DIRECTORY: '.'
-  ARTIFACT_RETENTION_DAYS: 7
-
-# التخزين المؤقت لتحسين الأداء
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
-
-jobs:
-  # 🔍 فحص الجاهزية والنظام
-  system-check:
-    name: 🔍 فحص جاهزية النظام V2
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    outputs:
-      health-status: ${{ steps.health-check.outputs.status }}
-      sheets-connected: ${{ steps.sheets-check.outputs.connected }}
-      email-service: ${{ steps.email-check.outputs.status }}
-      browser-ready: ${{ steps.browser-check.outputs.ready }}
-      system-ready: ${{ steps.final-check.outputs.ready }}
-      node-version: ${{ steps.node-check.outputs.version }}
-
-    steps:
-    - name: 📥 الحصول على الكود
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        show-progress: false
-
-    - name: 🏗️ إعداد Node.js ${{ env.NODE_VERSION }}
-      id: node-check
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
-        cache-dependency-path: '**/package-lock.json'
-
-    - name: 📦 تثبيت الاعتماديات الأساسية
-      run: |
-        echo "📦 تثبيت الاعتماديات الأساسية..."
-        npm ci --production --no-audit --no-fund
-        echo "✅ تم تثبيت الاعتماديات الأساسية"
-
-    - name: 🖥️ تثبيت المتصفح والمكتبات
-      id: browser-check
-      run: |
-        echo "🖥️ تثبيت المتصفح والمكتبات..."
-        sudo apt-get update -qq
-        sudo apt-get install -y -qq \
-          chromium-browser \
-          chromium-chromedriver \
-          xvfb \
-          libnss3 \
-          libxss1 \
-          libasound2 \
-          libatk-bridge2.0-0 \
-          libgtk-3-0 \
-          fonts-liberation \
-          libappindicator3-1 \
-          xdg-utils
-        
-        # التحقق من تثبيت المتصفح
-        if chromium-browser --version; then
-          echo "✅ المتصفح مثبت بنجاح"
-          echo "ready=true" >> $GITHUB_OUTPUT
-        else
-          echo "❌ فشل في تثبيت المتصفح"
-          echo "ready=false" >> $GITHUB_OUTPUT
-        fi
-
-    - name: 🔍 فحص اتصال Google Sheets
-      id: sheets-check
-      env:
-        GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
-        GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-      run: |
-        echo "🔍 فحص اتصال Google Sheets..."
-        
-        # إنشاء ملف اختبار بسيط
-        cat > test-sheets.js << 'EOF'
-        const { GoogleSheetsManager } = require('./src/core/google-sheets-manager');
-        
-        async function testConnection() {
-          try {
-            const manager = new GoogleSheetsManager();
-            await manager.initialize();
-            console.log('✅ اتصال Google Sheets نشط');
-            return true;
-          } catch (error) {
-            console.error('❌ فشل اتصال Google Sheets:', error.message);
-            return false;
-          }
-        }
-        
-        testConnection().then(success => {
-          process.exit(success ? 0 : 1);
-        });
-        EOF
-        
-        if node test-sheets.js; then
-          echo "connected=true" >> $GITHUB_OUTPUT
-        else
-          echo "connected=false" >> $GITHUB_OUTPUT
-        fi
-        
-        # تنظيف ملف الاختبار
-        rm -f test-sheets.js
-
-    - name: 📧 فحص خدمة البريد الإلكتروني
-      id: email-check
-      run: |
-        echo "📧 فحص خدمة البريد الإلكتروني..."
-        
-        cat > test-email.js << 'EOF'
-        const axios = require('axios');
-        
-        async function testEmailService() {
-          try {
-            const response = await axios.get('https://www.besttemporaryemail.com', { 
-              timeout: 10000,
-              headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-              }
-            });
-            
-            if (response.status === 200) {
-              console.log('✅ خدمة البريد الإلكتروني متاحة');
-              return true;
-            } else {
-              console.log('❌ خدمة البريد غير متاحة - حالة غير متوقعة:', response.status);
-              return false;
-            }
-          } catch (error) {
-            console.error('❌ خدمة البريد غير متاحة:', error.message);
-            return false;
-          }
-        }
-        
-        testEmailService().then(success => {
-          process.exit(success ? 0 : 1);
-        });
-        EOF
-        
-        if node test-email.js; then
-          echo "status=active" >> $GITHUB_OUTPUT
-        else
-          echo "status=inactive" >> $GITHUB_OUTPUT
-        fi
-        
-        rm -f test-email.js
-
-    - name: 🩺 فحص صحة النظام الشامل
-      id: health-check
-      env:
-        GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
-        GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-        NODE_ENV: production
-      run: |
-        echo "🩺 فحص صحة النظام الشامل..."
-        
-        if node src/deployment-check.js --quick; then
-          echo "status=healthy" >> $GITHUB_OUTPUT
-        else
-          echo "status=unhealthy" >> $GITHUB_OUTPUT
-        fi
-
-    - name: 📋 التحقق النهائي من الجاهزية
-      id: final-check
-      run: |
-        echo "📋 التحقق النهائي من الجاهزية..."
-        
-        if [[ '${{ steps.health-check.outputs.status }}' == 'healthy' ]] && \
-           [[ '${{ steps.sheets-check.outputs.connected }}' == 'true' ]] && \
-           [[ '${{ steps.email-check.outputs.status }}' == 'active' ]] && \
-           [[ '${{ steps.browser-check.outputs.ready }}' == 'true' ]]; then
-          echo "ready=true" >> $GITHUB_OUTPUT
-          echo "🎉 النظام جاهز للتشغيل!"
-        else
-          echo "ready=false" >> $GITHUB_OUTPUT
-          echo "⚠️ النظام غير جاهز - راجع التقارير أعلاه"
-        fi
-
-    - name: 📊 تقرير فحص النظام
-      if: always()
-      run: |
-        echo "📋 تقرير فحص النظام V2"
-        echo "========================"
-        echo "🩺 الصحة العامة: ${{ steps.health-check.outputs.status }}"
-        echo "📊 اتصال Google Sheets: ${{ steps.sheets-check.outputs.connected }}"
-        echo "📧 خدمة البريد: ${{ steps.email-check.outputs.status }}"
-        echo "🖥️ المتصفح: ${{ steps.browser-check.outputs.ready }}"
-        echo "🚀 الجاهزية: ${{ steps.final-check.outputs.ready }}"
-        echo "🔢 Node.js: ${{ steps.node-check.outputs.version }}"
-        echo "========================"
-
-  # 🚀 المهمة الرئيسية - نظام الأتمتة
-  reddit-automation:
-    name: 🚀 نظام أتمتة Reddit V2
-    runs-on: ubuntu-latest
-    needs: system-check
-    timeout-minutes: ${{ github.event.inputs.max_runtime || 360 }}
-    
-    # تشغيل فقط إذا كان النظام جاهز
-    if: needs.system-check.outputs.ready == 'true'
-
-    env:
-      GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
-      GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-      NODE_ENV: production
-      TZ: ${{ env.TIMEZONE }}
-      ENABLE_DEBUG: ${{ github.event.inputs.enable_debug || false }}
-      TARGET_ACCOUNTS: ${{ github.event.inputs.target_accounts || 48 }}
-
-    steps:
-    - name: 📥 الحصول على الكود
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ github.ref }}
-
-    - name: 🏗️ إعداد Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
-        cache-dependency-path: '**/package-lock.json'
-
-    - name: 📦 تثبيت الاعتماديات الكاملة
-      run: |
-        echo "📦 تثبيت الاعتماديات الكاملة..."
-        npm ci --no-audit --no-fund
-        npm list --depth=0
-        echo "✅ تم تثبيت جميع الاعتماديات"
-
-    - name: 🖥️ إعداد بيئة المتصفح
-      run: |
-        echo "🖥️ إعداد بيئة المتصفح..."
-        export DISPLAY=:99
-        Xvfb :99 -screen 0 1920x1080x24 -ac &
-        sleep 5
-        echo "✅ تم إعداد بيئة العرض الافتراضية"
-
-    - name: 🔧 التحضير للتشغيل
-      id: setup
-      run: |
-        echo "🔧 التحضير للتشغيل V2..."
-        echo "🎯 وضع التشغيل: ${{ github.event.inputs.run_mode || 'normal' }}"
-        echo "📈 الهدف: $TARGET_ACCOUNTS حساب"
-        echo "⏰ الحد الزمني: ${{ github.event.inputs.max_runtime || 360 }} دقيقة"
-        echo "🐛 التصحيح: $ENABLE_DEBUG"
-        
-        # إنشاء مجلدات ضرورية
-        mkdir -p logs screenshots tmp
-        
-        # إعداد متغيرات الإخراج
-        echo "start_time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
-        echo "run_mode=${{ github.event.inputs.run_mode || 'normal' }}" >> $GITHUB_OUTPUT
-
-    - name: 🚀 تشغيل نظام الأتمتة V2
-      id: automation-run
-      continue-on-error: true
-      run: |
-        set -o pipefail
-        
-        echo "🚀 بدء تشغيل نظام الأتمتة V2..."
-        
-        # تحديد أمر التشغيل بناءً على الوضع
-        case "${{ github.event.inputs.run_mode || 'normal' }}" in
-          "recovery")
-            echo "🔄 وضع التعافي - تشغيل مدير التعافي"
-            START_CMD="node src/recovery/recovery-manager.js --mode=recovery --target=$TARGET_ACCOUNTS"
-            ;;
-          "test")
-            echo "🧪 وضع الاختبار - تشغيل فحص شامل"
-            START_CMD="node src/test-system.js --full --target=5"
-            ;;
-          "cleanup")
-            echo "🧹 وضع التنظيف - تنظيف النظام"
-            START_CMD="node scripts/cleanup.js --force"
-            ;;
-          *)
-            echo "🚀 وضع التشغيل العادي - تشغيل النظام الرئيسي"
-            START_CMD="node src/main.js --target=$TARGET_ACCOUNTS"
-            ;;
-        esac
-        
-        # إضافة flags التصحيح إذا مطلوب
-        if [[ "$ENABLE_DEBUG" == "true" ]]; then
-          START_CMD="$START_CMD --debug --verbose"
-        fi
-        
-        echo "🔧 الأمر: $START_CMD"
-        
-        # تنفيذ الأمر مع التعامل مع الأخطاء والتسجيل
-        if timeout $(({{ github.event.inputs.max_runtime || 360 }} - 10))m $START_CMD 2>&1 | tee automation.log; then
-          echo "✅ اكتمل التشغيل بنجاح"
-          echo "result=success" >> $GITHUB_OUTPUT
-          echo "exit_code=0" >> $GITHUB_OUTPUT
-        else
-          EXIT_CODE=$?
-          echo "❌ فشل التشغيل مع كود الخروج: $EXIT_CODE"
-          echo "result=failure" >> $GITHUB_OUTPUT
-          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
-        fi
-        
-        echo "end_time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
-
-    - name: 🔄 التعافي التلقائي من الفشل
-      if: steps.automation-run.outputs.result == 'failure'
-      run: |
-        echo "🔄 تشغيل نظام التعافي التلقائي..."
-        
-        # التحقق من وجود ملفات النظام أولاً
-        if [ -f "src/recovery/recovery-manager.js" ]; then
-          if node src/recovery/recovery-manager.js --mode=auto-recover --quick 2>&1 | tee recovery.log; then
-            echo "✅ التعافي التلقائي ناجح"
-          else
-            echo "❌ فشل التعافي التلقائي"
-          fi
-        else
-          echo "⚠️ ملف التعافي غير موجود - تخطي التعافي التلقائي"
-        fi
-
-    - name: 📊 توليد تقرير الأداء
-      if: always()
-      continue-on-error: true
-      run: |
-        echo "📊 توليد تقرير أداء النظام..."
-        
-        # التحقق من وجود ملفات المراقبة أولاً
-        if [ -f "src/monitoring/performance-monitor.js" ]; then
-          if node -e "
-            try {
-              const { PerformanceMonitor } = require('./src/monitoring/performance-monitor');
-              const monitor = new PerformanceMonitor();
-              const report = monitor.generatePerformanceReport();
-              console.log('📈 تقرير الأداء النهائي:');
-              console.log(JSON.stringify(report, null, 2));
-            } catch (error) {
-              console.error('❌ فشل في توليد تقرير الأداء:', error.message);
-            }
-          " 2>&1 | tee performance.log; then
-            echo "✅ تم توليد تقرير الأداء"
-          else
-            echo "⚠️ فشل في توليد تقرير الأداء"
-          fi
-        else
-          echo "⚠️ ملف مراقبة الأداء غير موجود - تخطي التقرير"
-        fi
-
-    - name: 💾 حفظ سجلات النظام
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: system-logs-v2-${{ github.run_id }}-${{ github.run_attempt }}
-        path: |
-          *.log
-          logs/
-          src/**/*.log
-        retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
-        if-no-files-found: ignore
-        compression-level: 9
-
-    - name: 📸 حفظ لقطات الأخطاء
-      if: failure() && steps.automation-run.outputs.result == 'failure'
-      uses: actions/upload-artifact@v4
-      with:
-        name: error-screenshots-${{ github.run_id }}-${{ github.run_attempt }}
-        path: |
-          error_*.png
-          screenshots/
-          *.png
-        retention-days: 3
-        if-no-files-found: ignore
-
-    - name: 📁 حفظ بيانات النظام
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: system-data-${{ github.run_id }}-${{ github.run_attempt }}
-        path: |
-          data/
-          tmp/system-*
-          config/*.json
-        retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
-        if-no-files-found: ignore
-
-    - name: 📋 تقرير التشغيل النهائي
-      if: always()
-      run: |
-        echo "📋 تقرير التشغيل النهائي V2"
-        echo "=========================="
-        echo "🕒 وقت البدء: ${{ steps.setup.outputs.start_time }}"
-        echo "🕒 وقت النهاية: ${{ steps.automation-run.outputs.end_time || 'غير محدد' }}"
-        echo "🎯 النتيجة: ${{ steps.automation-run.outputs.result || 'unknown' }}"
-        echo "🔢 كود الخروج: ${{ steps.automation-run.outputs.exit_code || '0' }}"
-        echo "🚀 الوضع: ${{ steps.setup.outputs.run_mode }}"
-        echo "📈 الهدف: $TARGET_ACCOUNTS"
-        echo "=========================="
-
-  # 📈 مراقبة الأداء والتقارير
-  monitoring-report:
-    name: 📈 مراقبة الأداء والتقارير
-    runs-on: ubuntu-latest
-    needs: 
-      - system-check
-      - reddit-automation
-    if: always()
-
-    steps:
-    - name: 📥 تحميل سجلات النظام
-      uses: actions/download-artifact@v4
-      with:
-        name: system-logs-v2-${{ github.run_id }}-${{ github.run_attempt }}
-        path: logs/
-        if-no-files-found: ignore
-
-    - name: 📥 تحميل لقطات الأخطاء
-      if: failure()
-      uses: actions/download-artifact@v4
-      with:
-        name: error-screenshots-${{ github.run_id }}-${{ github.run_attempt }}
-        path: screenshots/
-        if-no-files-found: ignore
-
-    - name: 📥 تحميل بيانات النظام
-      uses: actions/download-artifact@v4
-      with:
-        name: system-data-${{ github.run_id }}-${{ github.run_attempt }}
-        path: data/
-        if-no-files-found: ignore
-
-    - name: 📊 تحليل سجلات الأداء
-      if: always()
-      run: |
-        echo "📊 تحليل سجلات الأداء..."
-        
-        if [ -f "logs/performance.log" ]; then
-          echo "📈 تقرير الأداء:"
-          cat logs/performance.log | tail -20 || echo "⚠️ لا يمكن قراءة ملف الأداء"
-        else
-          echo "⚠️ لا توجد سجلات أداء"
-        fi
-        
-        if [ -f "logs/automation.log" ]; then
-          echo "🔍 آخر 10 أسطر من سجل التشغيل:"
-          tail -10 logs/automation.log || echo "⚠️ لا يمكن قراءة سجل التشغيل"
-        fi
-
-    - name: ⚠️ تحليل سجلات الأخطاء
-      if: failure()
-      run: |
-        echo "⚠️ تحليل سجلات الأخطاء..."
-        
-        if [ -f "logs/automation.log" ]; then
-          echo "🔍 البحث عن الأخطاء في سجل التشغيل:"
-          grep -i -A 2 -B 2 "error\|fail\|exception\|uncaught" logs/automation.log | tail -20 || echo "✅ لا توجد أخطاء رئيسية"
-        fi
-        
-        if [ -f "logs/recovery.log" ]; then
-          echo "🔄 سجل التعافي:"
-          tail -10 logs/recovery.log || echo "⚠️ لا يمكن قراءة سجل التعافي"
-        fi
-
-    - name: 📨 إشعار بالنتائج (فشل)
-      if: failure() && needs.reddit-automation.result == 'failure'
-      uses: actions/github-script@v6
-      env:
-        GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
-      run: |
-        const { system-check, reddit-automation } = context.job;
-        const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-        
-        github.rest.issues.create({
-          owner: context.repo.owner,
-          repo: context.repo.repo,
-          title: `🚨 نظام Reddit Automation V2 يحتاج انتباه - التشغيل #${context.runNumber}`,
-          body: `
-          ## 📋 تقرير نظام الأتمتة V2
-
-          **تفاصيل التشغيل:**
-          - 🕒 الوقت: ${new Date().toLocaleString()}
-          - 🎯 النتيجة: فشل
-          - 🔍 فحص النظام: ${system-check.result}
-          - 🚀 الأتمتة: ${reddit-automation.result}
-          - 🔢 رقم التشغيل: ${context.runNumber}
-
-          **الإجراءات المطلوبة:**
-          1. مراجعة سجلات النظام
-          2. التحقق من اتصال الخدمات
-          3. فحص تقارير التعافي
-
-          **الروابط:**
-          - [سجلات التشغيل](${runUrl})
-          - [Google Sheets](https://docs.google.com/spreadsheets/d/${process.env.GOOGLE_SHEET_ID})
-
-          *تم إنشاء هذا الإشعار تلقائياً بواسطة نظام المراقبة V2*
-          `
-        });
-
-    - name: 🎉 إشعار النجاح
-      if: success() && needs.reddit-automation.result == 'success'
-      uses: actions/github-script@v6
-      env:
-        GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
-      run: |
-        const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-        
-        github.rest.issues.create({
-          owner: context.repo.owner,
-          repo: context.repo.repo,
-          title: `✅ نظام Reddit Automation V2 اكتمل بنجاح - التشغيل #${context.runNumber}`,
-          body: `
-          ## 🎉 تقرير النجاح - النظام V2
-
-          **تفاصيل التشغيل:**
-          - 🕒 الوقت: ${new Date().toLocaleString()}
-          - 🎯 الحالة: اكتمل بنجاح
-          - ⚡ الأداء: مثالي
-          - 🔢 رقم التشغيل: ${context.runNumber}
-
-          **الروابط:**
-          - [تفاصيل التشغيل](${runUrl})
-          - [Google Sheets](https://docs.google.com/spreadsheets/d/${process.env.GOOGLE_SHEET_ID})
-
-          *تم إنشاء هذا التقرير تلقائياً بواسطة نظام V2*
-          `
-        });
-
-    - name: 📄 إنشاء تقرير موجز
-      if: always()
-      run: |
-        echo "📄 التقرير الموجز للتشغيل V2"
-        echo "============================"
-        echo "✅ فحص النظام: ${{ needs.system-check.result }}"
-        echo "🚀 الأتمتة: ${{ needs.reddit-automation.result }}"
-        echo "📈 المراقبة: ${{ job.status }}"
-        echo "🆔 رقم التشغيل: ${{ github.run_number }}"
-        echo "🆔 محاولة التشغيل: ${{ github.run_attempt }}"
-        echo "============================"
-
-  # 🧹 تنظيف الموارد
-  cleanup:
-    name: 🧹 تنظيف الموارد
-    runs-on: ubuntu-latest
-    needs: 
-      - system-check
-      - reddit-automation
-      - monitoring-report
-    if: always()
-
-    steps:
-    - name: 🗑️ تنظيف العمليات العالقة
-      run: |
-        echo "🧹 تنظيف العمليات العالقة..."
-        pkill -f chrome || true
-        pkill -f chromedriver || true
-        pkill -f Xvfb || true
-        pkill -f node || true
-        echo "✅ تم تنظيف العمليات"
-
-    - name: 🧽 تنظيف الملفات المؤقتة
-      run: |
-        echo "🧽 تنظيف الملفات المؤقتة..."
-        rm -rf tmp/.* tmp/* || true
-        rm -f *.log || true
-        rm -f *.png || true
-        echo "✅ تم تنظيف الملفات المؤقتة"
-
-    - name: 📊 تقرير نهائي شامل
-      if: always()
-      run: |
-        echo "📊 التقرير النهائي الشامل للتشغيل V2"
-        echo "==================================="
-        echo "🏁 حالة جميع المهام:"
-        echo "  🔍 فحص النظام: ${{ needs.system-check.result }}"
-        echo "  🚀 الأتمتة: ${{ needs.reddit-automation.result }}"
-        echo "  📈 المراقبة: ${{ needs.monitoring-report.result }}"
-        echo "  🧹 التنظيف: ${{ job.status }}"
-        echo ""
-        echo "📈 الإحصائيات:"
-        echo "  🆔 التشغيل: ${{ github.run_number }}"
-        echo "  🔁 المحاولة: ${{ github.run_attempt }}"
-        echo "  ⏰ المدة: تم التنفيذ"
-        echo ""
-        if [[ "${{ needs.system-check.result }}" == "success" ]] && \
-           [[ "${{ needs.reddit-automation.result }}" == "success" ]]; then
-          echo "🎉 جميع المهام اكتملت بنجاح!"
-          echo "✨ النظام يعمل بشكل مثالي"
-        else
-          echo "⚠️ بعض المهام واجهت مشاكل - راجع السجلات"
-          echo "🔧 يوصى بمراجعة تقارير الأخطاء"
-        fi
-        echo "==================================="
-
-  # 🔄 التعافي التلقائي (وظيفة احتياطية)
-  auto-recovery:
-    name: 🔄 التعافي التلقائي
-    runs-on: ubuntu-latest
-    needs: [system-check, reddit-automation]
-    if: failure() && needs.system-check.result == 'success' && needs.reddit-automation.result == 'failure'
-    
-    steps:
-    - name: 📥 الحصول على الكود
-      uses: actions/checkout@v4
-
-    - name: 🏗️ إعداد Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: 'npm'
-
-    - name: 📦 تثبيت الاعتماديات
-      run: npm ci
-
-    - name: 🔄 تشغيل التعافي التلقائي
-      run: |
-        echo "🔄 تشغيل التعافي التلقائي الاحتياطي..."
-        if node src/recovery/recovery-manager.js --mode=emergency --auto; then
-          echo "✅ التعافي الاحتياطي ناجح"
-        else
-          echo "❌ فشل التعافي الاحتياطي"
-        fi
-
-    - name: 📢 إشعار التعافي
-      if: always()
-      uses: actions/github-script@v6
-      run: |
-        github.rest.issues.create({
-          owner: context.repo.owner,
-          repo: context.repo.repo,
-          title: `🔄 تعافي تلقائي تم تشغيله - التشغيل #${context.runNumber}`,
-          body: `
-          ## 🔄 تقرير التعافي التلقائي
-
-          **التفاصيل:**
-          - 🕒 الوقت: ${new Date().toLocaleString()}
-          - 🔢 رقم التشغيل: ${context.runNumber}
-          - 📍 السبب: فشل التشغيل الرئيسي
-
-          **الحالة:**
-          - تم تشغيل إجراءات التعافي تلقائياً
-          - النظام يحاول استعادة التشغيل
-
-          *تم إنشاء هذا الإشعار تلقائياً بواسطة نظام التعافي V2*
-          `
-        });
