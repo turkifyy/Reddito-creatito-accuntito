@@ -1,0 +1,159 @@
+{
+  "name": "reddit-smart-automation-v2",
+  "version": "2.0.0",
+  "description": "نظام أتمتة Reddit متطور مع تعافي تلقائي وخوارزميات ذكية - الإصدار الثاني",
+  "main": "src/main.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/main.js",
+    "dev": "node src/main.js --mode=development",
+    "production": "node src/main.js --mode=production",
+    "deploy": "node src/deployment-check.js --full",
+    "deploy:quick": "node src/deployment-check.js --quick",
+    "test": "node src/test-system.js --coverage",
+    "test:quick": "node src/test-system.js --quick",
+    "test:integration": "node src/test-system.js --integration",
+    "recover": "node src/recovery/recovery-manager.js --mode=auto",
+    "recover:quick": "node src/recovery/recovery-manager.js --mode=quick",
+    "recover:full": "node src/recovery/recovery-manager.js --mode=full",
+    "recover:emergency": "node src/recovery/recovery-manager.js --mode=emergency",
+    "monitor": "node src/monitoring/health-monitor.js --continuous",
+    "monitor:report": "node src/monitoring/health-monitor.js --report",
+    "monitor:quick": "node src/monitoring/health-monitor.js --quick",
+    "performance": "node src/monitoring/performance-monitor.js --analyze",
+    "performance:report": "node src/monitoring/performance-monitor.js --report",
+    "clean": "node scripts/cleanup.js",
+    "clean:force": "node scripts/cleanup.js --force",
+    "setup": "node scripts/setup.js",
+    "setup:ci": "node scripts/setup.js --ci",
+    "update": "npm update && npm audit fix",
+    "update:security": "npm audit --audit-level=moderate && npm audit fix",
+    "security": "npm audit --audit-level=moderate",
+    "lint": "npx eslint src/ --ext .js",
+    "lint:fix": "npx eslint src/ --ext .js --fix",
+    "format": "npx prettier --write src/",
+    "format:check": "npx prettier --check src/",
+    "build": "echo 'No build step needed for Node.js project'",
+    "prestart": "npm run deploy:quick",
+    "poststart": "npm run clean",
+    "predeploy": "npm run security",
+    "postdeploy": "npm run monitor:report"
+  },
+  "dependencies": {
+    "selenium-webdriver": "^4.15.0",
+    "chromedriver": "^120.0.0",
+    "axios": "^1.6.0",
+    "googleapis": "^126.0.1",
+    "user-agents": "^1.0.0",
+    "random-useragent": "^0.5.0",
+    "node-cron": "^3.0.3",
+    "ping": "^0.4.4",
+    "systeminformation": "^5.21.0",
+    "os-utils": "^0.0.14",
+    "chalk": "^4.1.2",
+    "cli-progress": "^3.12.0",
+    "boxen": "^7.1.1",
+    "figlet": "^1.7.0",
+    "inquirer": "^8.2.6",
+    "yargs": "^17.7.2",
+    "winston": "^3.11.0",
+    "moment": "^2.29.4",
+    "lodash": "^4.17.21",
+    "uuid": "^9.0.1",
+    "crypto-js": "^4.2.0",
+    "jsdom": "^23.0.1",
+    "cheerio": "^1.0.0-rc.12",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  },
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "prettier": "^3.1.1",
+    "mocha": "^10.2.0",
+    "chai": "^4.3.10",
+    "sinon": "^17.0.1",
+    "nyc": "^15.1.0",
+    "nodemon": "^3.0.2",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "keywords": [
+    "reddit",
+    "automation",
+    "selenium",
+    "nodejs",
+    "auto-recovery",
+    "smart-system",
+    "web-scraping",
+    "account-creation",
+    "temporary-email",
+    "google-sheets",
+    "github-actions",
+    "monitoring",
+    "performance",
+    "v2",
+    "ci-cd",
+    "workflow"
+  ],
+  "author": {
+    "name": "Reddit Automation Expert",
+    "email": "floresadam490@gmail.com",
+    "url": "https://github.com/turkifyy/Reddito-creatito-accuntito"
+  },
+  "contributors": [
+    {
+      "name": "AI Assistant",
+      "email": "floresadam490@gmail.com"
+    }
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/turkifyy/Reddito-creatito-accuntito.git"
+  },
+  "bugs": {
+    "url": "https://github.com/turkifyy/Reddito-creatito-accuntito/issues"
+  },
+  "homepage": "https://github.com/turkifyy/Reddito-creatito-accuntito#readme",
+  "funding": {
+    "type": "individual",
+    "url": "https://github.com/sponsors/turkifyy"
+  },
+  "files": [
+    "src/",
+    "config/",
+    "scripts/",
+    "docs/",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "lint-staged": {
+    "*.js": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.json": [
+      "prettier --write"
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "pre-push": "npm run test:quick"
+    }
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
+  }
+}
